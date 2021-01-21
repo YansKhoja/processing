@@ -1,0 +1,2 @@
+machine,path_obj,name_obj,path_data,name_data,duration,temperature,speed,material
+dagoma discoeasy 200,/Users/yanskhoja/Documents/Yans Khoja/Formation/CNAM/MUX101 - multimédia et interraction homme-machine /projet/Monitoring_test/data/,bottle.obj,/Users/yanskhoja/Documents/Yans Khoja/Formation/CNAM/MUX101 - multimédia et interraction homme-machine /projet/Monitoring_test/data/,bottle.csv,50,200,80,PLA
