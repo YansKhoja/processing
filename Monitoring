@@ -1,0 +1,500 @@
+//Lib pour générer le graphique
+import grafica.*;
+//Lib pour l'interface graphique (bouton, slider)
+import g4p_controls.*;
+//Lib pour l'affichage 3D
+import peasy.*;
+
+//Variable pour gérer l'affichage
+int i = 0, j =0, temp = 20;
+boolean startStop = false; 
+
+//Tableau de valeur (mode simulation)
+Table table;
+
+//Création des indicateurs TR
+Sensor temperature, rateFlow, speedPrint;
+
+
+//Création du graphique
+//Graphique
+GPlot plot;
+//Liste de point
+GPointsArray pointsPioneer = new GPointsArray();
+GPointsArray pointsPioneerT = new GPointsArray();
+GPointsArray pointsPioneerV = new GPointsArray();
+GPointsArray pointsPioneerD = new GPointsArray();
+//Point
+GPoint point = new GPoint(0,0);
+
+//Graphique bouton
+GSlider slider; 
+GImageButton buttonMinus; 
+GImageButton buttonMore; 
+GToggleGroup optionGraph; 
+GOption temperatureOption; 
+GOption speedOption; 
+GOption rateofflow; 
+GLabel infoGraphTitle; 
+//Gérer les différentes représentations
+int colorGraph;
+String titleAxe;
+String choixViz;
+//Gérer l'affichage des axes et le zoom
+float[] limY  = new float [] {0,245};
+public float[] limSlider = new float [] {0,5};
+boolean press = false;
+int zoom = 20;
+
+//Création de la vue 3D
+//Caméra
+GViewPeasyCam view1;
+//Objet 3D
+PShape shape;
+//Slider gérant le zoom
+GSlider zoom3D; 
+//Zoom
+int zoomSlider = -30; 
+
+
+// Variable declarations 
+GLabel lMachine; 
+GLabel machineVar;  
+GLabel fileVar; 
+GLabel lFile; 
+GLabel lDuration; 
+GLabel durationVar; 
+GButton monitor; 
+GLabel infoPrint; 
+GLabel lTemperature;
+GLabel temperatureVar;
+GLabel lPieceSpeed; 
+GLabel pieceSpeedVar; 
+GLabel lSpportSpeed; 
+GLabel supportSpeedVar;
+GLabel lStrate; 
+GLabel strateVar;
+
+void setup(){
+  size(995,900,P3D);
+ 
+  smooth();
+  //Ouvrir le fichier servant à la simulation 
+  String file = "./data/grip.csv";
+  table = loadTable(file,"header");
+  table.setColumnType("i", Table.INT);
+  table.setColumnType("T", Table.FLOAT);
+  table.setColumnType("V", Table.FLOAT);
+  table.setColumnType("D", Table.FLOAT);
+  table.setColumnType("ID", Table.FLOAT);
+  table.setColumnType("Nom", Table.STRING);
+  table.setColumnType("Dispositif", Table.STRING);
+  
+  //Créer les différents boutons 
+  createGUI();
+  
+  //Configurer les indicateurs
+  String[] scale1 = {"160","210","235"};
+  temperature = new Sensor("Température", "°", scale1, table, "T",785,310,150,150);
+  String[] scale2 = {"5,4","7,2","8"};
+  rateFlow = new Sensor("Débit", "mm3/s", scale2, table,"D",785,180,150,150);
+  String[] scale3 = {"60","80","100"};
+  speedPrint = new Sensor("Vitesse","m/s",scale3,table,"V",785,50,150,150);
+  
+  //Créer et configurer le graphique 
+  plot = new GPlot(this, 0, 500);
+  plot.setDim(900, 250);
+  plot.getXAxis().setNTicks(2);
+  plot.getYAxis().setNTicks(2);
+  pointsPioneer.add(point);
+  pointsPioneerT.add(point);
+  pointsPioneerV.add(point);
+  pointsPioneerD.add(point);
+  
+  //Configurer la caméra
+  view1 = new GViewPeasyCam(this,200, 60, 500, 370,100);
+  PeasyCam pcam = view1.getPeasyCam();
+  pcam.setMinimumDistance(100);
+  pcam.setMaximumDistance(300);
+  
+  // Changement du document 3D
+  shape = loadShape("grip.obj");
+  shape.setFill(color(#FFF82A));
+
+  background(200);
+}
+
+void draw(){
+   smooth();
+    try {
+      Float.toString(table.getFloat(i, "i"));
+    }
+    catch (ArrayIndexOutOfBoundsException e) {
+        startStop = false;
+        monitor.setText("Finish");
+        monitor.setLocalColorScheme(GCScheme.BLUE_SCHEME);
+        monitor.setEnabled(false);
+    }
+   //Representation graphique
+   drawGraph();
+   //Cadre paramètre
+   drawFrameworkParam();   
+   //Vue 3D
+   updateView1();
+  //Graphique
+   drawTime(i);
+  //Ajout des points lorsque le monitoring est lancé
+  //Affichage des indicateurs temps réel
+   if (startStop){
+      if (j == temp){
+        addPointPlot();
+        temperature.drawSensor(i);
+        rateFlow.drawSensor(i);
+        speedPrint.drawSensor(i);
+        i = i+1;
+        j = 0;
+      }
+      j = j + 1;
+    }
+    
+    if (i == 0){
+      temperature.createBackground();
+        rateFlow.createBackground();
+        speedPrint.createBackground();
+    }
+    
+}
+//Affichage du cadre des paramètres
+void drawFrameworkParam(){
+  //Cadre paramètre
+   pushStyle();
+     strokeCap(ROUND);
+     stroke(150);
+     fill(240);
+     rect(10, 30, 180, 275);
+   popStyle();
+}
+
+// Affcichage du timer (compte du nombre de couche)
+void drawTime(int i){
+  pushStyle();
+    fill(240);
+    stroke(150);
+    rect(200,440,550,30);
+  popStyle();
+  pushStyle();
+    fill(color(100, 250, 100));
+    noStroke();
+    rect(200,440,i*550/463,30);
+  popStyle();
+  pushStyle();
+    fill(0);
+    textAlign(CENTER,CENTER);
+    textSize(18);
+    text(i+"/463 strates",200,440,550,30); 
+  popStyle();
+  if (!startStop && i == 464){
+    pushStyle();
+      fill(color(100, 100, 240));
+      noStroke();
+      rect(200,440,i*550/463,30);
+      fill(255);
+      textAlign(CENTER,CENTER);
+      textSize(18);
+      text("Impression finie !",200,440,550,30); 
+    popStyle();
+  }
+}
+
+//Selectionner la representation graphique des données à afficher
+void selectGraph() {
+  if (rateofflow.isSelected()){
+      pointsPioneer = pointsPioneerD;
+      colorGraph = color(240, 100, 100);
+      titleAxe = "Débit";
+  } else if (speedOption.isSelected()) {
+       pointsPioneer = pointsPioneerV;
+       colorGraph = color(100, 100, 240);
+       titleAxe = "Vitesse";
+  } else if (temperatureOption.isSelected()) {
+      pointsPioneer = pointsPioneerT;
+      colorGraph = color(100, 250, 100);
+      titleAxe = "Temperature";
+  }
+}  
+
+// Ajouter des points à la liste de point par type de variable
+void addPointPlot(){
+  pointsPioneerT.add(createPoints(table,"T",i));
+  pointsPioneerV.add(createPoints(table,"V",i));
+  pointsPioneerD.add(createPoints(table,"D",i));
+}
+
+//Afficher la représentation du graphique
+void drawGraph(){
+  //Empêcher la surperposition
+  pushStyle();
+    noStroke();
+    fill(200);
+    rect(0, 500, width, height);
+  popStyle();
+  selectGraph();
+  drawBackground(colorGraph, titleAxe);
+  drawListPoint(pointsPioneer);
+}
+
+// dessiner graph
+void drawListPoint(GPointsArray _pointsPioneer){
+  plot.beginDraw();
+  plot.setPoints(_pointsPioneer);
+  plot.endDraw();
+}
+
+//dessiner background 
+void drawBackground(int col , String title){
+  // Fixer les limites selon Y 
+  plot.setYLim(limY);
+  // Jouer sur l'axe X permettant le zoom
+  if (press == true){
+    float[] limX = limSlider;
+    plot.setXLim(limX);
+    press = false;
+  } else {
+    //float[] limX = {pointsPioneer.getLastPoint().getX() - zoom, pointsPioneer.getLastPoint().getX() + zoom};
+    float[] limX = {slider.getValueF() - zoom, slider.getValueF() + zoom};
+    plot.setXLim(limX);
+  } 
+  //plot.setFixedYLim(true);
+  plot.setFixedXLim(true);
+  
+  // Draw the plot  
+  plot.beginDraw();
+  plot.setLineColor(col);
+  plot.setPointColor(col);
+  plot.getYAxis().setAxisLabelText(title);
+  plot.drawLines();
+  plot.drawLabels();
+  plot.drawPoints();
+  plot.drawXAxis();
+  plot.drawYAxis();
+  plot.drawGridLines(GPlot.HORIZONTAL);
+  plot.drawGridLines(GPlot.VERTICAL);
+  plot.drawFilledContours(GPlot.HORIZONTAL, 0);
+  plot.endDraw();
+  
+  // Mettre à jour le pointer du slider
+  if(startStop){
+    slider.setValue(pointsPioneer.getLastPoint().getX());
+  }
+
+}
+//Créer un nouveau point (GPoint)
+GPoint createPoints(Table _table, String columnVar, int row) {
+  Float.toString(_table.getFloat(row, "i"));
+  int time = _table.getInt(row, "i");
+  int indice = _table.getInt(row, columnVar);
+  GPoint point = new GPoint(time,indice);
+  return point;
+}
+ 
+void updateView1() {
+  PGraphics pg = view1.getGraphics();
+  PeasyCam pcam = view1.getPeasyCam();
+  
+  //Dessin de l'objet et environnement 3D indépendemant des vue 2D du reste de l'IHM
+  pg.beginDraw();
+  pg.resetMatrix();
+  //pg.ambientLight(100, 100, 100);
+  pg.directionalLight(255, 248, 42, 0.8f, 1, -1.2f);
+  pcam.feed();
+  
+  // Instruction utile pour la manipualtion de la caméra 
+  pcam.beginHUD();
+  pcam.endHUD();
+  
+  pushStyle();
+        fill(100);
+        if(startStop){
+          fill(100);
+          stroke(100);
+          pg.background(100);
+        } else {
+          fill(150);
+          stroke(150);
+          pg.background(150);
+        }
+        rect(200, 30, 550, 400);
+  popStyle();
+  pg.pushMatrix();
+  pg.shape(shape,0,0);
+  pg.scale(0,0,100);
+  pg.popMatrix();
+  pg.endDraw();
+}
+
+public void createGUI(){
+  G4P.messagesEnabled(false);
+  G4P.setGlobalColorScheme(GCScheme.CYAN_SCHEME);
+  G4P.setMouseOverEnabled(false);
+  surface.setTitle("Sketch Window");
+  
+  //Paramètre d'impression
+  lMachine = new GLabel(this, 20, 40, 80, 20);
+  lMachine.setText("Machine :");
+  lMachine.setTextBold();
+  lMachine.setOpaque(false);
+  machineVar = new GLabel(this, 110, 40, 80, 20);
+  machineVar.setText("Dagoma");
+  machineVar.setOpaque(false);
+  lFile = new GLabel(this, 20, 80, 80, 20);
+  lFile.setText("Fichier :");
+  lFile.setTextBold();
+  lFile.setOpaque(false);
+  fileVar = new GLabel(this, 110, 80, 80, 20);
+  fileVar.setText("grip.obj");
+  fileVar.setOpaque(false);
+  lDuration = new GLabel(this, 20, 120, 80, 20);
+  lDuration.setText("Durée : ");
+  lDuration.setTextBold();
+  lDuration.setOpaque(false);
+  durationVar = new GLabel(this, 110, 120, 80, 20);
+  durationVar.setText("2,40 min");
+  durationVar.setOpaque(false);
+  lTemperature = new GLabel(this, 20, 160, 100, 20);
+  lTemperature.setText("Température :");
+  lTemperature.setTextBold();
+  lTemperature.setOpaque(false);
+  temperatureVar = new GLabel(this, 130, 160, 60, 20);
+  temperatureVar.setText("235°C");
+  temperatureVar.setOpaque(false);
+  lPieceSpeed = new GLabel(this, 20, 200, 100, 20);
+  lPieceSpeed.setText("Vitesse pièce:");
+  lPieceSpeed.setTextBold();
+  lPieceSpeed.setOpaque(false);
+  pieceSpeedVar = new GLabel(this, 130, 200, 60, 20);
+  pieceSpeedVar.setText("100mm/s");
+  pieceSpeedVar.setOpaque(false);
+  lSpportSpeed = new GLabel(this, 20, 240, 100, 20);
+  lSpportSpeed.setText("Débit :");
+  lSpportSpeed.setTextBold();
+  lSpportSpeed.setOpaque(false);
+  supportSpeedVar = new GLabel(this, 130, 240, 60, 20);
+  supportSpeedVar.setText("8mm3/s");
+  supportSpeedVar.setOpaque(false);
+  lStrate = new GLabel(this, 20, 280, 100, 20);
+  lStrate.setText("Matière :");
+  lStrate.setTextBold();
+  lStrate.setOpaque(false);
+  strateVar = new GLabel(this, 130, 280, 60, 20);
+  strateVar.setText("ABS");
+  strateVar.setOpaque(false);
+  monitor = new GButton(this, 15, 330, 170, 100);
+  monitor.setLocalColorScheme(GCScheme.GREEN_SCHEME);
+  monitor.setText("Start");
+  monitor.setTextBold();
+  monitor.addEventHandler(this, "Monitor_click");
+  
+  //Création des boutons graphique
+  infoGraphTitle = new GLabel(this, 50, 510, 200, 20);
+  infoGraphTitle.setText("Evolution des indicateurs");
+  infoGraphTitle.setTextBold();
+  infoGraphTitle.setOpaque(false);
+  optionGraph = new GToggleGroup();
+  temperatureOption = new GOption(this, 80, 540, 60, 20);
+  temperatureOption.setIconAlign(GAlign.LEFT, GAlign.MIDDLE);
+  temperatureOption.setText("T(°)");
+  temperatureOption.setOpaque(false);
+  temperatureOption.addEventHandler(this, "temperature_clicked");
+  speedOption = new GOption(this, 140, 540, 60, 20);
+  speedOption.setIconAlign(GAlign.LEFT, GAlign.MIDDLE);
+  speedOption.setText("V(m/s)");
+  speedOption.setOpaque(false);
+  speedOption.addEventHandler(this, "speed_clicked");
+  rateofflow = new GOption(this, 210, 540, 60, 20);
+  rateofflow.setIconAlign(GAlign.LEFT, GAlign.MIDDLE);
+  rateofflow.setText("D(l/s)");
+  rateofflow.setOpaque(false);
+  rateofflow.addEventHandler(this, "rateofflow_clicked");
+  optionGraph.addControl(temperatureOption);
+  temperatureOption.setSelected(true);
+  optionGraph.addControl(speedOption);
+  optionGraph.addControl(rateofflow);
+  buttonMinus = new GImageButton(this, 950, 770, 15, 15, new String[] { "less.png", "minus.png", "less.png" } );
+  buttonMinus.addEventHandler(this, "buttonMinus_click");
+  buttonMore = new GImageButton(this, 950, 750, 15, 15, new String[] { "add.png", "more.png", "add.png" } );
+  buttonMore.addEventHandler(this, "buttonMore_click");
+  slider = new GSlider(this, 50, 810, 920, 40, 15.0);
+  slider.setLimits(0.0, 0.0, 463);
+  slider.setNumberFormat(G4P.DECIMAL, 1);
+  slider.setOpaque(false);
+  slider.addEventHandler(this, "slider_change");
+  
+  //Création slider 3D
+  zoom3D = new GSlider(this, 770, 320, 100, 100, 30.0);
+  zoom3D.setRotation(PI/2, GControlMode.CORNER);
+  zoom3D.setLimits(100, 100, 300);
+  zoom3D.setEasing(5);
+  zoom3D.setNumberFormat(G4P.DECIMAL, 2);
+  zoom3D.setOpaque(false);
+  zoom3D.addEventHandler(this, "zoom3D_change");
+  
+}
+
+
+// Evenement des boutons
+// Action du slider = déplacement des bornes du graphiques sur l'axe X. 
+// Ces bornes sont centrés et espacé de 5 unités par rapport au point courant (dernier point rajouté)
+// La variable zoom peut être modifié par les boutons minus et more 
+public void slider_change(GSlider source, GEvent event) { 
+  float value = float(source.getValueS().replace(",","."));
+  limSlider[0] =  value - zoom;
+  limSlider[1] =  value + zoom ;
+  press = true;
+} 
+// Bouton option permettant de modifier la varibale affichée
+public void temperature_clicked(GOption source, GEvent event) { 
+  limY[0] = 0;
+  limY[1] = 245;
+  choixViz = "T";
+  //redraw();
+} 
+public void speed_clicked(GOption source, GEvent event) {
+  limY[0] = 0;
+  limY[1] = 110;
+  choixViz = "V";
+  //redraw();
+} 
+public void rateofflow_clicked(GOption source, GEvent event) { 
+  limY[0] = 0;
+  limY[1] = 10;
+  choixViz = "D"; 
+  //redraw();
+}
+//Bouton plus et moins permettant de zoomer sur le graphique 
+public void buttonMinus_click(GImageButton source, GEvent event) { 
+  zoom = zoom + 1;
+  
+} 
+public void buttonMore_click(GImageButton source, GEvent event) { 
+  if (zoom > 1) {
+  zoom = zoom - 1;
+  }
+}
+
+// Bouton permettant de lancer la visualisation
+public void Monitor_click(GButton source, GEvent event) { 
+  if (monitor.getText()=="Start"){
+    //Commencer le monitoring
+    startStop = true;
+    monitor.setLocalColorScheme(GCScheme.RED_SCHEME);
+    monitor.setText("Stop");
+  } else if (monitor.getText()=="Stop"){
+    startStop = false;
+    monitor.setLocalColorScheme(GCScheme.GREEN_SCHEME);
+    monitor.setText("Start");
+  }
+} 
+//Bouton permettant de gérer le zoom sur l'objet 3D
+public void zoom3D_change(GSlider source, GEvent event) { 
+  view1.getPeasyCam().setDistance(zoom3D.getValueI());
+} 
